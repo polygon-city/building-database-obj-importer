@@ -1,20 +1,24 @@
 var _ = require("lodash");
 var argv = require("minimist")(process.argv.slice(2));
 var inquirer = require("inquirer");
-var JXON = require("jxon");
+var glob = require("glob");
+var LineReader = require("line-by-line");
 var fs = require("fs");
 var async = require("async");
 var request = require("request");
 
-var config;
-var kmlPath;
+var proj4 = require("proj4");
+proj4.defs("EPSG:25833", "+proj=utm +zone=33 +ellps=GRS80 +towgs84=0,0,0,0,0,0,0 +units=m +no_defs");
 
-if (!argv || (!argv.k && !argv.kml)) {
-  console.log("Path to KML file must be provided via the -k or --kml flag.")
+var config;
+var objPath;
+
+if (!argv || (!argv.d && !argv.dir)) {
+  console.log("Path to OBJ files must be provided via the -d or --dir flag.")
   process.exit(0);
 } else {
-  kmlPath = (argv.k) ? argv.k : argv.kml;
-  console.log("KML path:", kmlPath);
+  objPath = (argv.d) ? argv.d : argv.dir;
+  console.log("OBJ path:", objPath);
 }
 
 // TODO: Set buildings as hidden until confirmed as correct
@@ -23,7 +27,7 @@ if (!argv || (!argv.k && !argv.kml)) {
 // https://github.com/polygon-city/building-database-kml-importer/issues/2
 
 // TODO: Fix ENOENT error where tmp files are deleted before being finished with
-// TODO: Fix { error: 'An error occurred during conversion' }
+// TODO: Fix { error: "An error occurred during conversion" }
 
 // For storing login session cookie
 var cookieJar;
@@ -35,7 +39,6 @@ var creator;
 var creatorURL;
 var method;
 var description;
-var filePrefix;
 
 var questions = [
   {
@@ -148,8 +151,6 @@ var setVariables = function() {
       method = "automated";
       description = config.description;
 
-      filePrefix = kmlPath.split(/[\w-_]+\.kml/)[0];
-
       console.log(JSON.stringify(config, null, "  "));
 
       cb(null);
@@ -212,14 +213,15 @@ var checkConfig = function() {
 // TODO: Send location data POST request after successful file upload
 var buildingQueue = async.queue(function(building, done) {
   var formData = {
-    model: fs.createReadStream(filePrefix + building.model),
+    model: fs.createReadStream(building.model),
     creator: building.creator,
     creatorURL: building.creatorURL,
     method: building.method,
     description: building.description,
     // Leave original scale, assuming units are in metres already
     scale: 1,
-    angle: building.angle,
+    // No angle as model is already oriented
+    angle: 0,
     latitude: building.latitude,
     longitude: building.longitude,
     batchID: building.batchID,
@@ -276,6 +278,8 @@ var login = function() {
         if (err) {
           throw err;
         }
+
+        console.log(body);
 
         // Hacky check to see if logged in
         if (body === "Moved Temporarily. Redirecting to /login") {
@@ -348,7 +352,7 @@ var getBatch = function(cb) {
   });
 };
 
-var readKML = function(path) {
+var readOBJDir = function(path) {
   return function (cb) {
     process.nextTick(function() {
       if (!batchID) {
@@ -356,56 +360,78 @@ var readKML = function(path) {
         return;
       }
 
-      fs.readFile(path, "utf-8", function(err, data) {
+      glob(objPath + "**/*.obj", function (err, files) {
         if (err) {
-          console.log("Unable to open KML file");
-          throw err;
-        }
-        
-        var jxon = JXON.stringToJs(data);
-
-        if (!jxon) {
-          throw new Error("Error in JXON conversion");
+          console.error(err);
+          return;
         }
 
-        if (!jxon.kml || !jxon.kml.document) {
-          throw new Error("File is missing <kml> and <document> elements");
-        }
+        _.each(files, function(file) {
+          var name = file.split(".obj")[0].split("/").pop();
 
-        var kml = jxon.kml.document;
+          async.waterfall([function(callback) {
+            getOrigin(file, function(err, origin) {
+              var coords;
+              try {
+                coords = proj4("EPSG:25833").inverse([origin[0], origin[1]]);
+              } catch(err) {
+                callback(err);
+              }
 
-        _.each(kml.placemark, function(placemark) {
-          // TODO: Find something other than name to rely on as this can be changed manually after upload - perhaps batch.ref?
-          var exclude = _.find(batchExclude, function(building) {
-            return (building.batch.buildingRef === placemark.name);
-          });
+              callback(null, coords);
+            });
+          }, function(coords, callback) {
+            var exclude = _.find(batchExclude, function(building) {
+              return (building.batch.buildingRef === name);
+            });
 
-          if (exclude) {
-            console.log("Skipping building as already uploaded:", placemark.name);
-            return;
-          }
+            if (exclude) {
+              console.log("Skipping building as already uploaded:", name);
+              return;
+            }
 
-          var output = {};
+            var output = {};
 
-          output.model = placemark.model.link.href;
-          output.creator = creator;
-          output.creatorURL = creatorURL;
-          output.method = method;
-          output.description = description;
-          output.latitude = placemark.model.location.latitude,
-          output.longitude = placemark.model.location.longitude,
-          output.angle = placemark.model.orientation.heading
-          output.batchID = batchID;
-          output.batchBuildingRef = placemark.name;
+            output.model = file;
+            output.creator = creator;
+            output.creatorURL = creatorURL;
+            output.method = method;
+            output.description = description;
+            output.latitude = coords[1],
+            output.longitude = coords[0],
+            output.batchID = batchID;
+            output.batchBuildingRef = name;
 
-          // Add building to queue
-          buildingQueue.push(output);
+            // Add building to queue
+            buildingQueue.push(output);
+          }]);
         });
-      
-        cb(null);
       });
     });
   };
+};
+
+var getOrigin = function(objFile, callback) {
+  var lr = new LineReader(objFile);
+  var re = /^# Origin: \((\d+\.\d+)\,*\s*(\d+\.\d+)\,*\s*(\d+\.\d+)\)/i;
+
+  lr.on("error", function(err) {
+    callback(err);
+    lr.close();
+  });
+
+  lr.on("line", function(line) {
+    var results = re.exec(line);
+
+    if (results) {
+      callback(null, [Number(results[1]), Number(results[2]), Number(results[3])]);
+
+      this.pause();
+      this.end();
+    }
+  });
+
+  lr.on("end", function() {});
 };
 
 // TODO: Not working
@@ -421,14 +447,14 @@ var startBatch = function() {
 };
 
 // TODO: Should this be a waterfall instead so the login cookie and batch ID can be passed along?
-// TODO: If batch ID is provided on load, check current status and only upload buildings that haven't been added (eg. that aren't returned)
+// TODO: If batch ID is provided on load, check current status and only upload buildings that haven"t been added (eg. that aren"t returned)
 async.series([
   getConfig(),
   checkConfig(),
   setVariables(),
   login(),
   startBatch(),
-  readKML(kmlPath)
+  readOBJDir(objPath)
 ], function(err, results) {
   if (err) {
     throw err;
