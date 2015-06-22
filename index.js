@@ -373,7 +373,7 @@ var readOBJDir = function(path) {
             getOrigin(file, function(err, origin) {
               var coords;
               try {
-                coords = proj4("EPSG:25833").inverse([origin[0], origin[1]]);
+                coords = proj4("EPSG:25833").inverse([origin[0], origin[2]]);
               } catch(err) {
                 callback(err);
               }

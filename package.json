@@ -1,6 +1,6 @@
 {
   "name": "building-database-obj-importer",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "description": "Bulk import of buildings using OBJ for use in Polygon City",
   "main": "index.js",
   "scripts": {
