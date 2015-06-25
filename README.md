@@ -24,6 +24,7 @@ __If you're continuing an existing batch:__ make sure the `batchID` config optio
 
 ## Notes
 
-* This only works with OBJ files created using [citygml-to-obj](https://github.com/polygon-city/citygml-to-obj) (due to the way geo-coordinate data is stored)
-* The projection EPSG:25833 (central Europe) is hard-coded while testing Berlin CityGML datasets (this will become an option of some kind)
-* Models will be oriented incorrectly on the x-axis due to a quirk in the CityGML conversion (due to be fixed)
+* This only works with OBJ files created using [citygml-to-obj](https://github.com/polygon-city/citygml-to-obj) due to the way origin data is stored
+* Ensure that you define the projection in the config file or terminal setup as a proj4js definition string
+ * eg. `"+proj=longlat +datum=WGS84 +no_defs"`
+ * You can find out the proj4js definition from [epsg.io](http://epsg.io/)

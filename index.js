@@ -8,7 +8,6 @@ var async = require("async");
 var request = require("request");
 
 var proj4 = require("proj4");
-proj4.defs("EPSG:25833", "+proj=utm +zone=33 +ellps=GRS80 +towgs84=0,0,0,0,0,0,0 +units=m +no_defs");
 
 var config;
 var objPath;
@@ -35,6 +34,7 @@ var cookieJar;
 var batchID;
 // Buildings to exclude from batch
 var batchExclude;
+var projection;
 var creator;
 var creatorURL;
 var method;
@@ -63,6 +63,15 @@ var questions = [
     type: "input",
     name: "description",
     message: "How would you describe the data?",
+    validate: function(value) {
+      var valid = (value.toString().length > 0);
+      return valid || "Please enter a string";
+    },
+    filter: String
+  }, {
+    type: "input",
+    name: "projection",
+    message: "What is the proj4js definition for the data?",
     validate: function(value) {
       var valid = (value.toString().length > 0);
       return valid || "Please enter a string";
@@ -146,6 +155,9 @@ var setVariables = function() {
       // Buildings to exclude from batch
       batchExclude = [];
 
+      // Projection
+      projection = proj4.defs("importer", config.projection);
+
       creator = config.creator;
       creatorURL = config.creatorURL;
       method = "automated";
@@ -177,6 +189,11 @@ var checkConfig = function() {
 
         if (!config.description) {
           console.log("Required description tag missing");
+          fail = true;
+        }
+
+        if (!config.projection) {
+          console.log("Required projection missing");
           fail = true;
         }
 
@@ -373,7 +390,7 @@ var readOBJDir = function(path) {
             getOrigin(file, function(err, origin) {
               var coords;
               try {
-                coords = proj4("EPSG:25833").inverse([origin[0], origin[1]]);
+                coords = proj4("importer").inverse([origin[0], origin[1]]);
               } catch(err) {
                 callback(err);
               }
