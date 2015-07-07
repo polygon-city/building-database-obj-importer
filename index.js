@@ -390,7 +390,7 @@ var readOBJDir = function(path) {
             getOrigin(file, function(err, origin) {
               var coords;
               try {
-                coords = proj4("importer").inverse([origin[0], origin[1]]);
+                coords = proj4("importer").inverse([origin[0], origin[2]]);
               } catch(err) {
                 callback(err);
               }
@@ -430,7 +430,7 @@ var readOBJDir = function(path) {
 
 var getOrigin = function(objFile, callback) {
   var lr = new LineReader(objFile);
-  var re = /^# Origin: \((\d+\.\d+)\,*\s*(\d+\.\d+)\,*\s*(\d+\.\d+)\)/i;
+  var re = /^# Origin: \((\d+\.?\d+)\,*\s*(\d+\.?\d+)\,*\s*(\d+\.?\d+)\)/i;
 
   lr.on("error", function(err) {
     callback(err);
