@@ -383,50 +383,60 @@ var readOBJDir = function(path) {
           return;
         }
 
+        // Queue file processing as not to cause EMFILE errors
+        // https://github.com/polygon-city/building-database-obj-importer/issues/1
+        var q = async.queue(processFile, 100);
+
         _.each(files, function(file) {
-          var name = file.split(".obj")[0].split("/").pop();
-
-          async.waterfall([function(callback) {
-            getOrigin(file, function(err, origin) {
-              var coords;
-              try {
-                coords = proj4("importer").inverse([origin[0], origin[2]]);
-              } catch(err) {
-                callback(err);
-              }
-
-              callback(null, coords);
-            });
-          }, function(coords, callback) {
-            var exclude = _.find(batchExclude, function(building) {
-              return (building.batch.buildingRef === name);
-            });
-
-            if (exclude) {
-              console.log("Skipping building as already uploaded:", name);
-              return;
-            }
-
-            var output = {};
-
-            output.model = file;
-            output.creator = creator;
-            output.creatorURL = creatorURL;
-            output.method = method;
-            output.description = description;
-            output.latitude = coords[1],
-            output.longitude = coords[0],
-            output.batchID = batchID;
-            output.batchBuildingRef = name;
-
-            // Add building to queue
-            buildingQueue.push(output);
-          }]);
+          q.push(file);
         });
       });
     });
   };
 };
+
+var processFile = function(file, cb) {
+  var name = file.split(".obj")[0].split("/").pop();
+
+  async.waterfall([function(callback) {
+    getOrigin(file, function(err, origin) {
+      var coords;
+      try {
+        coords = proj4("importer").inverse([origin[0], origin[2]]);
+      } catch(err) {
+        callback(err);
+      }
+
+      callback(null, coords);
+    });
+  }, function(coords, callback) {
+    var exclude = _.find(batchExclude, function(building) {
+      return (building.batch.buildingRef === name);
+    });
+
+    if (exclude) {
+      console.log("Skipping building as already uploaded:", name);
+      return;
+    }
+
+    var output = {};
+
+    output.model = file;
+    output.creator = creator;
+    output.creatorURL = creatorURL;
+    output.method = method;
+    output.description = description;
+    output.latitude = coords[1],
+    output.longitude = coords[0],
+    output.batchID = batchID;
+    output.batchBuildingRef = name;
+
+    // Add building to queue
+    buildingQueue.push(output);
+
+    cb();
+  }]);
+}
 
 var getOrigin = function(objFile, callback) {
   var lr = new LineReader(objFile);
