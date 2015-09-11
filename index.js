@@ -385,7 +385,7 @@ var readOBJDir = function(path) {
 
         // Queue file processing as not to cause EMFILE errors
         // https://github.com/polygon-city/building-database-obj-importer/issues/1
-        var q = async.queue(processFile, 100);
+        var q = async.queue(processFile, 50);
 
         _.each(files, function(file) {
           q.push(file);
@@ -443,8 +443,8 @@ var getOrigin = function(objFile, callback) {
   var re = /^# Origin: \((\d+\.?\d+)\,*\s*(\d+\.?\d+)\,*\s*(\d+\.?\d+)\)/i;
 
   lr.on("error", function(err) {
-    callback(err);
     lr.close();
+    callback(err);
   });
 
   lr.on("line", function(line) {
@@ -453,8 +453,10 @@ var getOrigin = function(objFile, callback) {
     if (results) {
       callback(null, [Number(results[1]), Number(results[2]), Number(results[3])]);
 
-      this.pause();
-      this.end();
+      // TODO: Calling all of these may be overkill
+      lr.pause();
+      lr.end();
+      lr.close();
     }
   });
 
