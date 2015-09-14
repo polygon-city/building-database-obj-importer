@@ -6,6 +6,7 @@ var LineReader = require("line-by-line");
 var fs = require("fs");
 var async = require("async");
 var request = require("request");
+require("request-debug")(request);
 
 var proj4 = require("proj4");
 
@@ -261,9 +262,9 @@ var buildingQueue = async.queue(function(building, done) {
       return;
     }
 
-    console.log("Status code:", res.statusCode);
-    console.log("Headers:");
-    console.log(res.headers);
+    // console.log("Status code:", res.statusCode);
+    // console.log("Headers:");
+    // console.log(res.headers);
 
     try {
       var savedBuilding = JSON.parse(body);
@@ -278,8 +279,8 @@ var buildingQueue = async.queue(function(building, done) {
         return;
       }
 
-      console.log("Building response:");
-      console.log(savedBuilding);
+      // console.log("Building response:");
+      // console.log(savedBuilding);
 
       done();
       return
