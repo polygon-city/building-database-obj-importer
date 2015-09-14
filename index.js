@@ -261,21 +261,34 @@ var buildingQueue = async.queue(function(building, done) {
       return;
     }
 
-    var savedBuilding = JSON.parse(body);
+    console.log("Status code:", res.statusCode);
+    console.log("Headers:");
+    console.log(res.headers);
 
-    // Skip on errors for now
-    // Likely a line-by-line error which can be ignored
-    // Though it does seem to cause some buildings not to successfully upload
-    // TODO: Work out how to avoid this error entirely
-    if (savedBuilding.error) {
-      console.log("Skipping error:", savedBuilding.error);
+    try {
+      var savedBuilding = JSON.parse(body);
+
+      // Skip on errors for now
+      // Likely a line-by-line error which can be ignored
+      // Though it does seem to cause some buildings not to successfully upload
+      // TODO: Work out how to avoid this error entirely
+      if (savedBuilding.error) {
+        console.log("Skipping error:", savedBuilding.error);
+        done();
+        return;
+      }
+
+      console.log("Building response:");
+      console.log(savedBuilding);
+
+      done();
+      return
+    } catch(e) {
+      console.log("Error parsing JSON:");
+      console.log(body);
       done();
       return;
     }
-
-    console.log(savedBuilding);
-
-    done();
   });
 }, 10);
 
