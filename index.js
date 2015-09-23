@@ -430,6 +430,7 @@ var processFile = function(file, cb) {
 
     if (exclude) {
       console.log("Skipping building as already uploaded:", name);
+      cb();
       return;
     }
 
