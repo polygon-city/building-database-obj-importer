@@ -6,5 +6,6 @@ module.exports = {
   polygonCityURL: "http://polygoncity.url",
   polygonCityUser: "username",
   polygonCityPass: "password",
-  batchID: ""
+  batchID: "",
+  licenceType: "CC0"
 };

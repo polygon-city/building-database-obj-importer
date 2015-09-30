@@ -28,3 +28,4 @@ __If you're continuing an existing batch:__ make sure the `batchID` config optio
 * Ensure that you define the projection in the config file or terminal setup as a proj4js definition string
  * eg. `"+proj=longlat +datum=WGS84 +no_defs"`
  * You can find out the proj4js definition from [epsg.io](http://epsg.io/)
+* The `licenceType` config option currently only accepts `CC-BY` or `CC0` as values

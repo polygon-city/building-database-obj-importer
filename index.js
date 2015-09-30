@@ -40,6 +40,7 @@ var creator;
 var creatorURL;
 var method;
 var description;
+var licenceType;
 
 var questions = [
   {
@@ -123,6 +124,17 @@ var questions = [
     when: function(answers) {
       return answers.batchContinue;
     }
+  }, {
+    type: "list",
+    name: "licenceType",
+    message: "What licence is the data released under?",
+    validate: function(value) {
+      var valid = (value === "CC-BY" || value === "CC0");
+      return valid || "Please select a valid licence";
+    },
+    filter: String,
+    choices: ["CC0", "CC-BY"],
+    default: 0
   }
 ];
 
@@ -163,6 +175,10 @@ var setVariables = function() {
       creatorURL = config.creatorURL;
       method = "automated";
       description = config.description;
+
+      if (config.licenceType) {
+        licenceType = config.licenceType;
+      }
 
       console.log(JSON.stringify(config, null, "  "));
 
@@ -245,6 +261,10 @@ var buildingQueue = async.queue(function(building, done) {
     batchID: building.batchID,
     batchBuildingRef: building.batchBuildingRef
   };
+
+  if (licenceType) {
+    formData.licenceType = licenceType;
+  }
 
   request.post({
     url: config.polygonCityURL + "/api/buildings",
