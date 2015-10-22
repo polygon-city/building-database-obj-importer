@@ -246,6 +246,8 @@ var checkConfig = function() {
 // TODO: POST building data: http://stackoverflow.com/a/25345124/997339
 // TODO: Send location data POST request after successful file upload
 var buildingQueue = async.queue(function(building, done) {
+  var startTime = Date.now();
+
   var formData = {
     model: fs.createReadStream(building.model),
     creator: building.creator,
@@ -301,6 +303,9 @@ var buildingQueue = async.queue(function(building, done) {
 
       // console.log("Building response:");
       // console.log(savedBuilding);
+
+      var processTime = Date.now() - startTime;
+      console.log("Processing: Slug ID " + savedBuilding.building.slug.id + " took " + processTime + " ms");
 
       done();
       return
