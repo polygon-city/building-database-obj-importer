@@ -16,9 +16,14 @@ var objPath;
 if (!argv || (!argv.d && !argv.dir)) {
   console.log("Path to OBJ files must be provided via the -d or --dir flag.")
   process.exit(0);
+} else if (!argv || (!argv.k && !argv.key)) {
+  console.log("Pelias API key must be provided via the -k or --key flag.")
+  process.exit(0);
 } else {
   objPath = (argv.d) ? argv.d : argv.dir;
   console.log("OBJ path:", objPath);
+  peliasKey = (argv.k) ? argv.k : argv.key;
+  console.log("Pelias API key:", peliasKey);
 }
 
 // TODO: Set buildings as hidden until confirmed as correct
@@ -261,6 +266,7 @@ var buildingQueue = async.queue(function(building, done) {
     latitude: building.latitude,
     longitude: building.longitude,
     batchID: building.batchID,
+    peliasKey: building.peliasKey,
     batchBuildingRef: building.batchBuildingRef
   };
 
@@ -516,7 +522,7 @@ var startBatch = function() {
 };
 
 // TODO: Should this be a waterfall instead so the login cookie and batch ID can be passed along?
-// TODO: If batch ID is provided on load, check current status and only upload buildings that haven"t been added (eg. that aren"t returned)
+// TODO: If batch ID is provided on load, check current status and only upload buildings that haven't been added (eg. that aren't returned)
 async.series([
   getConfig(),
   checkConfig(),
